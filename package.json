@@ -3,7 +3,12 @@
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "hardhat": "^2.22.6"
   },
-   "scripts": {
-    "hardhat": "cd node_modules/hardhat && npx hardhat"
+  "scripts": {
+    "hardhat": "cd node_modules/hardhat && npx hardhat",
+    "hardhat-compile": "cd node_modules/hardhat && npx hardhat compile",
+    "hardhat-compile-v": "cd node_modules/hardhat && npx hardhat compile --show-stack-traces --verbose",
+    "hardhat-node": "cd node_modules/hardhat && npx hardhat node",
+    "hardhat-ignition-deploy": "cd node_modules/hardhat && npx hardhat ignition deploy ./ignition/modules/%npm_config_name%",
+    "hardhat-test": "cd node_modules/hardhat && npx hardhat test"
   }
 }
