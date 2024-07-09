@@ -106,14 +106,13 @@ Agora basta rodar `npm run hardhat`, e o comando `npx hardhat` será executado d
 
 #### Criando contrato e eventos
 Repare que na pasta `/contracts/` já existe um contrato de exemplo `Lock.sol` mas vamos criar nosso próprio `contract` para compila-lo.  
-Em `/contratcs/` crie um arquivo chamado `SimpleWallet.sol`.  
-Agora vamos criar os eventos que iremos usar em `SimpleWallet.sol`:
+Em `/contratcs/` crie um arquivo chamado `SimpleWallet.sol` com o seguinte conteúdo:  
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 // Uncomment this line to use console.log
-//import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract SimpleWallet {
     mapping(address => uint256) private balances;
@@ -130,7 +129,7 @@ contract SimpleWallet {
 
     // Event to log sent funds
     event Sent(address indexed from, address indexed to, uint256 amount);
-    
+
     // Event emitted when a QR code is linked to an address
     event QRCodeLinked(string indexed qrCodeHash, address indexed account);
 
@@ -139,43 +138,11 @@ contract SimpleWallet {
         string indexed qrCodeHash,
         address indexed account
     );
-    
-    //...functions <<<<<
-}
-```
-Criamos então duas variáveis:
- - balances uint256  
- - qrCodeToAddress string<br/>
-
-E também 4 eventos:
- - Deposit  
- - Withdrawal  
- - Charge  
- - Sent  <br/><br/>
-
-#### Criando funções e habilitando o console.log do hardhat
-
-Habilitaremos o console.log do [hardhat](https://hardhat.org/) depois, por enquanto deixe os `console.sol e .log` comentados <br/><br/>
-
-#### Funções
-Agora vamos adicionar as funções ao código:
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
-
-// Uncomment this line to use console.log
-// import "hardhat/console.sol";
-
-contract SimpleWallet {
-    mapping(address => uint256) private balances;
-    mapping(string => address) private qrCodeToAddress;
-
-   // >>>>>>>>>>>> EVENTS <<<<<<<<<<
 
     // Function to deposit funds
     function deposit(uint256 _amount) public {
         require(_amount > 0, "Deposit amount must be greater than zero");
-        balances[msg.sender] += _amount;
+        balances[msg.sender] += _amount  ;
         //console.log("Deposited %s to %s", _amount, msg.sender);
         emit Deposit(msg.sender, _amount);
     }
@@ -197,7 +164,6 @@ contract SimpleWallet {
         emit Charge(msg.sender, _amount);
     }
 
-    // Function to send funds to another account
     function send(
         uint256 _amount,
         address payable _to,
@@ -208,36 +174,49 @@ contract SimpleWallet {
 
         address payable recipient = _to;
 
-        // If a QR code hash is provided, use it to find the recipient address
         if (bytes(_qrCodeHash).length > 0) {
-            // If a QR code hash is provided, use it to find the recipient address
             recipient = payable(qrCodeToAddress[_qrCodeHash]);
             require(recipient != address(0), "Invalid QR code");
-
+            balances[msg.sender] -= _amount;
+            (bool success, ) = recipient.call{value: _amount}("");//_amount, gas: gasleft()
+            require(success, "Transfer failed.");
             emit QRCodeAddressRetrieved(_qrCodeHash, recipient);
         } else {
-            // No QR code provided, send directly to the provided address
-            recipient = _to;
-
+            require(
+                recipient != address(0),
+                "Recipient address must be provided"
+            );
+            balances[msg.sender] -= _amount;
+            (bool success, ) = recipient.call{value: _amount}("");
+            // require(success, "Transfer failed."); // Esta linha pode ser removida
             emit Sent(msg.sender, recipient, _amount);
         }
-
-        require(recipient != address(0), "Recipient address must be provided");
-
-        balances[msg.sender] -= _amount;
-        // balances[recipient] += _amount;  you are updating your balance
-        // recipient directly in the balances mapping. This method is
-        // common when you just want to record a transaction on the contract
-        // and do not need to send Ether immediately to the recipient
-        //external to the contract
-        // balances[recipient] += _amount;
-
-        //The method recipient.transfer(_amount); is used to tranfer Ether
-        //immediately to an address outside the contract.
-        recipient.transfer(_amount);
-        // console.log("Sent %s from %s to %s", _amount, msg.sender, recipient);
-        emit Sent(msg.sender, recipient, _amount);
     }
+
+    // Send function to send funds to another account or retrieve funds linked to a QR code
+    // function send(uint256 _amount, address payable _to, string memory _qrCodeHash) public {
+    //     require(_amount > 0, "Send amount must be greater than zero");
+    //     require(balances[msg.sender] >= _amount, "Insufficient balance");
+
+    //     address payable recipient = _to;
+
+    //     if (bytes(_qrCodeHash).length > 0) {
+    //         recipient = payable(qrCodeToAddress[_qrCodeHash]);
+    //         require(recipient != address(0), "Invalid QR code");
+    //         balances[msg.sender] -= _amount;
+    //         (bool success, ) = recipient.call{value: _amount}("");
+    //         require(success, "Transfer failed.");
+    //         emit QRCodeAddressRetrieved(_qrCodeHash, recipient);
+    //     } else {
+    //         require(recipient != address(0), "Recipient address must be provided");
+    //         balances[msg.sender] -= _amount;
+    //         (bool success, ) = recipient.call{value: _amount}("");
+    //         require(success, "Transfer failed.");
+    //         emit Sent(msg.sender, recipient, _amount);
+    //     }
+    // }
+
+
 
     // Function to associate a QR code hash with an address
     function linkQRCodeToAddress(
@@ -260,11 +239,13 @@ contract SimpleWallet {
     function getBalance() public view returns (uint256) {
         uint256 balance = balances[msg.sender];
         // console.log("Balance of %s is %s", msg.sender, balance);
-        return balances[msg.sender];
+        return balance;
     }
 }
 
-```
+```  
+Habilitaremos o console.log do [hardhat](https://hardhat.org/) depois, por enquanto deixe os `console.sol e .log` comentados <br/><br/>
+
 Pronto temos um contrato em mãos, agora basta compilarmos ele.<br/><br/>
 
 #### Compilando seu contrato
@@ -293,6 +274,245 @@ Primeiro vamos garantir que alguns modulos depreciados não estejam no n osso pr
 
 Agora vamos garantir que `hardhat-toolbox` esteja instalado, rode:  
 `npm install --save-dev @nomicfoundation/hardhat-toolbox`  
+Agora na pasta `test/` exclua o `Lock.js` e crie o `SimpleWallet.js` arquivo com o seguinte conteúdo:  
+```JavaScript
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
+require("@nomicfoundation/hardhat-toolbox");
+// const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
+describe("SimpleWallet", function () {
+  let SimpleWallet;
+  let owner;
+  let addr1;
+  let addr2;
+
+  beforeEach(async function () {
+    // get signers
+    [owner, addr1, addr2] = await ethers.getSigners();
+
+    // Load the contract SimpleWallet
+    const SimpleWalletFactory = await ethers.getContractFactory("SimpleWallet");
+    SimpleWallet = await SimpleWalletFactory.deploy();
+    await SimpleWallet.waitForDeployment();
+
+  });
+
+
+  describe("deposit", function () {
+    it("Should deposit funds", async function () {
+      // Doing a deposit
+      await SimpleWallet.deposit(100);
+
+      // Check if balance of the owner address after the deposit
+      const ownerBalance = await SimpleWallet.getBalance();
+      expect(ownerBalance).to.equal(100, "Owner's balance should be 100 after deposit");
+    });
+  });
+
+  describe("charge", function () {
+    it("Should charge funds", async function () {
+      const chargeAmount = ethers.parseEther("1");
+
+      await SimpleWallet.connect(addr1).charge(chargeAmount);
+
+      const balance = ethers.parseEther("1");
+      expect(balance).to.equal(chargeAmount, "Contract balance should be equal to charge amount");
+    });
+
+    it("Should emit a Charge event", async function () {
+      const chargeAmount = ethers.parseEther("1");
+
+      await expect(SimpleWallet.connect(addr1).charge(chargeAmount))
+        .to.emit(SimpleWallet, "Charge")
+        .withArgs(addr1.address, chargeAmount);
+    });
+
+    it("Should revert on zero amount charge", async function () {
+      await expect(SimpleWallet.connect(addr1).charge(0)).to.be.revertedWith("Charge amount must be greater than zero");
+    });
+  });
+
+  describe("send", function () {
+    it("Should send funds to another account", async function () {
+      const initialBalance = await ethers.provider.getBalance(owner.address);
+      const sendAmount = ethers.parseEther("1");
+
+      // Deposit an initial specified balance
+      await SimpleWallet.connect(owner).deposit(initialBalance);
+
+      // Execute the send function to transfer funds
+      await expect(SimpleWallet.connect(owner).send(sendAmount, addr2.address, ""))
+        .to.emit(SimpleWallet, "Sent")
+        .withArgs(owner.address, addr2.address, sendAmount);
+       
+
+      // Check the balance after the transaction
+      const contractBalance = await SimpleWallet.connect(owner).getBalance();
+      expect(contractBalance).to.equal(initialBalance - sendAmount);
+    });
+
+    it("Should emit a Sent event", async function () {
+      const sendAmount = ethers.parseEther("1");
+
+      await SimpleWallet.connect(addr1).deposit(sendAmount);
+
+      await expect(SimpleWallet.connect(addr1).send(sendAmount, addr2.address, ""))
+        .to.emit(SimpleWallet, "Sent")
+        .withArgs(addr1.address, addr2.address, sendAmount);
+    });
+
+    it("Should revert on insufficient balance", async function () {
+      const sendAmount = ethers.parseEther("1");
+
+      await expect(SimpleWallet.connect(addr1).send(sendAmount, addr2.address, "")).to.be.revertedWith("Insufficient balance");
+    });
+
+    it("Should revert on zero amount send", async function () {
+      await expect(SimpleWallet.connect(addr1).send(0, addr2.address, "")).to.be.revertedWith("Send amount must be greater than zero");
+    });
+
+    it("Should revert on invalid QR code", async function () {
+      const sendAmount = ethers.parseEther("1");
+
+      await SimpleWallet.connect(addr1).deposit(sendAmount);
+
+      await expect(SimpleWallet.connect(addr1).send(sendAmount, addr2.address, "invalidQRCode")).to.be.revertedWith("Invalid QR code");
+    });
+
+    it("Should revert on missing recipient address", async function () {
+      const sendAmount = ethers.parseEther("1");
+
+      await SimpleWallet.connect(addr1).deposit(sendAmount);
+
+      await expect(SimpleWallet.connect(addr1).send(sendAmount, ethers.ZeroAddress, "")).to.be.revertedWith("Recipient address must be provided");
+    });
+
+
+  });
+
+  describe("linkQRCodeToAddress", function () {
+    it("Should revert with 'Invalid address' when linking to AddressZero", async function () {
+      const qrCode = "exampleQRCode";
+
+      await expect(
+        SimpleWallet.connect(owner).linkQRCodeToAddress(qrCode, ethers.ZeroAddress)
+      ).to.be.revertedWith("Invalid address");
+    });
+
+    it("Should link QR code to a valid address", async function () {
+      const qrCode = "exampleQRCode";
+      const validAddress = addr1.address;
+
+      // Link QR code to a valid address
+      await SimpleWallet.connect(owner).linkQRCodeToAddress(qrCode, validAddress);
+
+      // Check that the QR code is linked to the correct address
+      const linkedAddress = await SimpleWallet.getQRCodeAddress(qrCode);
+      expect(linkedAddress).to.equal(validAddress, "QR code should be linked to the correct address");
+    });
+  });
+
+  describe("getBalance", function () {
+    it("Should return the correct balance", async function () {
+      // Check opening balance
+      const initialBalance = await SimpleWallet.getBalance();
+      expect(initialBalance).to.equal(0, "Initial balance should be 0");
+
+      // Make a deposit
+      const depositAmount = ethers.parseEther("0.3"); // 0.3 ETH in wei
+      await SimpleWallet.deposit(depositAmount);
+
+      // Check balance after deposit
+      const balanceAfterDeposit = await SimpleWallet.getBalance();
+      expect(balanceAfterDeposit).to.equal(depositAmount, "Balance should be 0.3 ETH after deposit");
+    });
+  });
+
+  describe("withdraw", function () {
+    it("Should withdraw funds", async function () {
+      const depositAmount = ethers.parseEther("1");
+
+      await SimpleWallet.connect(addr1).deposit(depositAmount);
+      await SimpleWallet.connect(addr1).withdraw(depositAmount);
+
+      expect(await SimpleWallet.getBalance()).to.equal(0);
+    });
+
+    it("Should emit a Withdrawal event", async function () {
+      const depositAmount = ethers.parseEther("1");
+
+      await SimpleWallet.connect(addr1).deposit(depositAmount);
+
+      await expect(SimpleWallet.connect(addr1).withdraw(depositAmount))
+        .to.emit(SimpleWallet, "Withdrawal")
+        .withArgs(addr1.address, depositAmount);
+    });
+
+    it("Should revert on insufficient balance", async function () {
+      const depositAmount = ethers.parseEther("1");
+
+      await expect(SimpleWallet.connect(addr1).withdraw(depositAmount)).to.be.revertedWith("Insufficient balance");
+    });
+
+    it("Should revert on zero amount withdrawal", async function () {
+      await expect(SimpleWallet.connect(addr1).withdraw(0)).to.be.revertedWith("Withdrawal amount must be greater than zero");
+    });
+  });
+});
+```
+
+Pronto, os tests são auto explicativos em seus nomes, agora vamos criar dois novos `scripts` em `package.json` para rodar esses tests, em `package.json` adicione mais esses scripts:  
+```json
+"hardhat-node": "cd node_modules/hardhat && npx hardhat node",
+"hardhat-test": "cd node_modules/hardhat && npx hardhat test"
+```
+Com `npm run hardhat-node` vamos criar rodar a rede local do [hardhat](https://hardhat.org/) em um terminal, em outro terminal rode `npm run hardhat-test`, aqui todos os 17 testes devem passar. Você não precisa necessariamente rodar o `node` para rodar o `test`, mas lá você pode ter noção das contas que estamos usamos e conferir se está tudo ok para rodarmos nossa aplicação na rede local do [hardhat](https://hardhat.org/).<br/><br/>
+
+### Fazendo deploy do contrato para rede local via ignition
+
+Agora para fazermos o deploy, primeiramente, na rede local, depois faremos em uma rede teste online via [Infura](https://www.infura.io/) para se conectar à rede testnet da [Sepolia](https://ethereum.org/en/developers/docs/networks/#sepolia), recomendada pela própria [Ethereum.org aqui](https://ethereum.org/en/developers/docs/networks/#sepolia), mas antes vamos fazer o seguinte.  
+Primeiro crie um arquivo js em `/ignition/modules/` chamado `SimpleWallet.js` com o seguinte conteúdo:
+```JavaScript
+const { buildModule } = require("@nomicfoundation/hardhat-ignition/modules");
+
+module.exports = buildModule("SimpleWalletModule",  (m) => {
+  const simpleWallet =  m.contract("SimpleWallet", [])
+  return { simpleWallet }
+});
+```
+Agora criaremos outro `script` para rodar `npx hardhat ignition deploy ./ignition/modules/SimpleWallet.js --network localhost` no nosso `package.json`:  
+```json
+"hardhat-ignition-deploy": "cd node_modules/hardhat && npx hardhat ignition deploy ../../ignition/modules/SimpleWallet.js --network %npm_config_name%"
+```
+A única diferença nesse `script` é que ele vai receber o nome da `network` dinâmicamente com `--name=localhost` por exemplo, pra que no futuro possamos usar outra rede caso necessário, você poderia fazer o mesmo definindo outra variável caso possua mais de uma `ignition` e também devemos nos lembrar que o npx roda de dentro de `node_modules/hardhat`, portanto estamos voltando alguns repositórios para encontrar nossa `/ignition`.<br/><br/>
+
+Pra esse caso será necessário que a rede esteja rodando em um terminal e você execute o `ignition deploy` em outro.  
+Em um terminal rode : `npm run hardhat-node`  
+Em outro terminal rode : `npm run hardhat-ignition-deploy --name=localhost`<br/><br/>
+
+Se tude ocorrer bem você deve receber uma mensagem no terminal do `node` como:
+```shell
+eth_call
+  Contract deployment: SimpleWallet
+  Contract address:    0x5fbdb2315678afecb367f032d93f642f64180aa3    
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266    
+
+eth_sendTransaction
+  Contract deployment: SimpleWallet
+  Contract address:    0x5fbdb2315678afecb367f032d93f642f64180aa3    
+  Transaction:         0x106888b066befe7989423edd6d6779dce44cb1f2d0f1598acc977b10dc6460d7
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266    
+  Value:               0 ETH
+  Gas used:            1196395 of 1196395
+  Block #1:            0x147493863adf7f7c17a1628a33dcdd99a41f7d58699d8f2e521ad907ff71b94f
+```
+E um aviso em vermelho `hardhat_setLedgerOutputEnabled - Method not supported` pode ser ignorado com segurança, mas não devemos alertá-lo sobre fazer algo que é totalmente esperado (uma implantação do Ignition) ([comentário](https://github.com/NomicFoundation/hardhat/issues/5406#issuecomment-2178203227)), segundo [essa própria issue](https://github.com/NomicFoundation/hardhat/issues/5406#issuecomment-2178203227) do [NomicFoundation](https://github.com/NomicFoundation) responsável pelo própio [hardhat](https://hardhat.org/).  
+
+E no terminal do `ignition deploy` :  
+`SimpleWalletModule#SimpleWallet - 0x5FbDB2315678afecb367f032d93F642f64180aa3` <br/><br/>
+
+
+### Criando nossos endpoints
 
 
 
