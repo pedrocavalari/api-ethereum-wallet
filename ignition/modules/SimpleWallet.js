@@ -8,6 +8,7 @@ module.exports = buildModule("SimpleWalletModule",  (m) => {
 
   const simpleWallet =  m.contract("SimpleWallet", [])
   // m.call(simpleWallet, [], { id: "SimpleW" })
+  // m.call()
   return { simpleWallet }
 });
 // terminal do deploy
@@ -27,3 +28,9 @@ module.exports = buildModule("SimpleWalletModule",  (m) => {
 //   Value:               0 ETH
 //   Gas used:            1196395 of 1196395
 //   Block #1:            0x147493863adf7f7c17a1628a33dcdd99a41f7d58699d8f2e521ad907ff71b94f
+
+
+//Reveiver transactions 
+// RECEIVER 
+// Account #14: 0xdF3e18d64BC6A983f673Ab319CCaE4f1a57C7097 (10000 ETH)  
+// Private Key: 0xc526ee95bf44d8fc405a158bb884d9d1238d99f0612e9f33d006bb0789009aaa

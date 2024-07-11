@@ -10,5 +10,8 @@
     "hardhat-node": "cd node_modules/hardhat && npx hardhat node",
     "hardhat-test": "cd node_modules/hardhat && npx hardhat test",
     "hardhat-ignition-deploy": "cd node_modules/hardhat && npx hardhat ignition deploy ../../ignition/modules/SimpleWallet.js --network %npm_config_name%"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
   }
 }
